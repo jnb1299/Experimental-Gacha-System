@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chaos Gacha</title>
+  <style>
+    body {
+      background: #111;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      gap: 40px;
+    }
+
+    h1 {
+      color: orange;
+      margin: 10px;
+    }
+
+    .side-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .menu-button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      color: white;
+      transition: 0.3s;
+    }
+
+    .menu-button:hover {
+      opacity: 0.8;
+    }
+
+    .skills-btn { background: #007bff; }
+    .traits-btn { background: #28a745; }
+    .items-btn { background: #ffc107; color: black; }
+    .powers-btn { background: #6f42c1; }
+
+    .main-content {
+      text-align: center;
+    }
+
+    .card {
+      width: 220px;
+      height: 120px;
+      background: black;
+      border: 3px solid #666;
+      border-radius: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      margin: 20px auto;
+      cursor: pointer;
+      transition: transform 0.5s ease;
+    }
+
+    .card.spin {
+      transform: rotateY(360deg);
+    }
+
+    /* Colores según rareza */
+    .common { border: 3px solid gray; }
+    .rare { border: 3px solid blue; }
+    .legendary { border: 3px solid gold; }
+    .mythical { border: 3px solid pink; }
+    .divine { border: 3px solid orange; }
+  .transcendent { border: 3px solid red; }
+  .ultra-rare { border: 3px solid purple; }
+
+    .info-box {
+      background: #222;
+      border: 2px solid orange;
+      padding: 15px;
+      margin: 20px auto;
+      width: 300px;
+      text-align: left;
+      border-radius: 5px;
+      min-height: 120px;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin: 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      background: orange;
+      color: black;
+    }
+
+    button:hover {
+      background: gold;
+    }
+    .probabilities {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      padding: 10px;
+      width: 300px;
+      margin: 0 auto 10px auto;
+      border-radius: 6px;
+      text-align: left;
+      font-size: 14px;
+    }
+    .prob-row { display:flex; justify-content:space-between; padding:4px 0; }
+    .prob-name { text-transform: capitalize; }
+  </style>
+</head>
+<body>
+  <!-- Menú izquierdo -->
+  <div class="side-menu">
+    <button class="menu-button skills-btn" onclick="setCategory('skills')">Skills</button>
+    <button class="menu-button traits-btn" onclick="setCategory('traits')">Traits</button>
+    <button class="menu-button items-btn" onclick="setCategory('items')">Items</button>
+    <button class="menu-button powers-btn" onclick="setCategory('powers')">Powers</button>
+  </div>
+
+  <!-- Contenido principal -->
+  <div class="main-content">
+    <h1>Chaos Gacha</h1>
+
+    <div class="card" id="gachaCard">
+      <strong>Click to roll</strong>
+    </div>
+
+    <div id="probabilities" class="probabilities" aria-live="polite">
+      <!-- probabilities rendered here -->
+    </div>
+
+    <button id="rollButton">🎲 Roll Gacha</button>
+
+    <div class="info-box" id="info">
+      <strong>Result goes here</strong>
+    </div>
+  </div>
+
+  <script>
+    // Probabilidades por rareza (weights). Keys should match data.rarity values but we normalize when matching.
+    const rarityChances = {
+      'Common': 40,
+      'Rare': 20,
+      // data used "Ultra Rare" (with space) in some entries — handle both by normalization in logic
+      'Ultra Rare': 7,
+      'Legendary': 2,
+      'Mythical': 1,
+      'Divine': 0.1,
+    };
+
+    // Base de datos
+    // --- EXPANDED DATABASE (paste this above your existing code) ---
+const data = {
+  skills: [
+    { name: "Sharingan", type: "Skill", rarity: "Legendary", description: "Eye that copies and anticipates movements." },
+    { name: "Mangekyō Sharingan", type: "Skill", rarity: "Mythical", description: "Extremely powerful ocular techniques." },
+    { name: "Eternal Mangekyō", type: "Skill", rarity: "Divine", description: "Eternal version without ocular weaknesses." },
+    { name: "Rinnegan", type: "Skill", rarity: "Divine", description: "Master paths, life, and death." },
+    { name: "Byakugan", type: "Skill", rarity: "Ultra Rare", description: "360° vision and chakra detection." },
+    { name: "Tenseigan", type: "Skill", rarity: "Mythical", description: "Celestial eye with gravitational control." },
+    { name: "Susanoo", type: "Skill", rarity: "Mythical", description: "Imposing defensive/offensive ethereal avatar." },
+    { name: "Amaterasu", type: "Skill", rarity: "Legendary", description: "Black flames that consume everything." },
+    { name: "Kamui", type: "Skill", rarity: "Ultra Rare", description: "Spatial distortion and dimensional teleportation." },
+    { name: "Tsukuyomi", type: "Skill", rarity: "Legendary", description: "Absolute-effect temporal illusion." },
+    { name: "Six Paths Power", type: "Skill", rarity: "Divine", description: "Set of transcendental abilities." },
+    { name: "Domain Expansion: Infinite Void", type: "Skill", rarity: "Divine", description: "Space that paralyzes enemy minds." },
+    { name: "Domain Expansion: Malevolent Shrine", type: "Skill", rarity: "Mythical", description: "Offensive domain with absolute range." },
+    { name: "Hollow Purple (Cursed)", type: "Skill", rarity: "Legendary", description: "Purgatory technique that obliterates matter." },
+    { name: "Reverse Cursed Technique", type: "Skill", rarity: "Ultra Rare", description: "Healing/inverse cursed energy transformation." },
+    { name: "Cursed Speech", type: "Skill", rarity: "Rare", description: "Words that inflict or force actions." },
+    { name: "Cursed Energy Control", type: "Skill", rarity: "Common", description: "Foundation for shaping cursed energy." },
+    { name: "Domain Amplification", type: "Skill", rarity: "Rare", description: "Increases domain power and range." },
+    { name: "Black Flash", type: "Skill", rarity: "Legendary", description: "Impact with temporal synchronization extra force." },
+    { name: "Rasengan", type: "Skill", rarity: "Rare", description: "Highly concentrated spinning chakra ball." },
+    { name: "Chidori", type: "Skill", rarity: "Rare", description: "Concentrated lethal lightning attack." },
+    { name: "Sage Mode", type: "Skill", rarity: "Ultra Rare", description: "Balance between natural energy and chakra." },
+    { name: "Nine-Tails Chakra Mode", type: "Skill", rarity: "Mythical", description: "Massive reservoir of beastly chakra." },
+    { name: "Shunpo", type: "Skill", rarity: "Ultra Rare", description: "Near-instantaneous movement flash." },
+    { name: "Breathing Style: Water", type: "Skill", rarity: "Rare", description: "Fluid cuts and water techniques." },
+    { name: "Breathing Style: Thunder", type: "Skill", rarity: "Rare", description: "Electrical attacks with extreme speed." },
+    { name: "Breathing Style: Flame", type: "Skill", rarity: "Rare", description: "Fire control and offensive projection." },
+    { name: "Spirit Energy Control", type: "Skill", rarity: "Rare", description: "Manipulate spiritual energy in combat." },
+    { name: "Healing Hands", type: "Skill", rarity: "Common", description: "Basic healing of minor wounds." },
+    { name: "Cursed Technique: Projection", type: "Skill", rarity: "Ultra Rare", description: "Project techniques from objects or sand." },
+    { name: "Domain: Binding Field", type: "Skill", rarity: "Legendary", description: "Domain that imposes conditions on enemies." },
+    { name: "Beast Instinct", type: "Skill", rarity: "Rare", description: "Enhanced reflexes and animal intuition." },
+    { name: "Nen: Enhancement", type: "Skill", rarity: "Rare", description: "Enhances physical attributes via nen." },
+    { name: "Nen: Manipulation", type: "Skill", rarity: "Ultra Rare", description: "Manipulate beings or objects with nen." },
+    { name: "Nen: Conjuration", type: "Skill", rarity: "Rare", description: "Create tangible objects with nen." },
+    { name: "Nen: Transmutation", type: "Skill", rarity: "Ultra Rare", description: "Convert nen into unique properties." },
+    { name: "Instant Transmission", type: "Skill", rarity: "Ultra Rare", description: "Immediate teleportation to visualized target." },
+    { name: "Time Skip Reflex", type: "Skill", rarity: "Mythical", description: "Perception that skips fractions of time." },
+    { name: "Reality Perception", type: "Skill", rarity: "Divine", description: "See and manipulate real-world rules." },
+    { name: "Energy Sensing", type: "Skill", rarity: "Common", description: "Detect nearby energy flows." },
+    { name: "Weapon Mastery: Katana", type: "Skill", rarity: "Rare", description: "Advanced katana cutting mastery." },
+    { name: "Puppet Control", type: "Skill", rarity: "Rare", description: "Manipulate puppets or others' bodies." },
+    { name: "Cursed Technique: Blood Manipulation", type: "Skill", rarity: "Ultra Rare", description: "Use own blood as weapon or seal." }
+  ],
+
+  traits: [
+    { name: "Saiyan Bloodline", type: "Trait", rarity: "Legendary", description: "Gain strength after each defeat." },
+    { name: "Quirk Affinity", type: "Trait", rarity: "Rare", description: "Higher compatibility with quirks." },
+    { name: "Cursed Vessel", type: "Trait", rarity: "Ultra Rare", description: "Attract and contain cursed energy." },
+    { name: "Regenerator", type: "Trait", rarity: "Rare", description: "Accelerated tissue regeneration." },
+    { name: "Berserker Rage", type: "Trait", rarity: "Ultra Rare", description: "Gain strength when enraged." },
+    { name: "Glass Cannon", type: "Trait", rarity: "Common", description: "High damage, low defense." },
+    { name: "Tank Body", type: "Trait", rarity: "Rare", description: "Extremely high physical resistance." },
+    { name: "Genius Strategist", type: "Trait", rarity: "Rare", description: "Plan battles with precision." },
+    { name: "Lucky Streak", type: "Trait", rarity: "Common", description: "Small odds always in favor." },
+    { name: "Iron Will", type: "Trait", rarity: "Rare", description: "Easily resist mental effects." },
+    { name: "Spirit-Bound", type: "Trait", rarity: "Mythical", description: "Stable connection with spiritual entities." },
+    { name: "Shadow Kin", type: "Trait", rarity: "Ultra Rare", description: "Superior affinity with shadows." },
+    { name: "Divine Heritage", type: "Trait", rarity: "Divine", description: "Direct link to celestial forces." },
+    { name: "Beast Instinct", type: "Trait", rarity: "Rare", description: "Superhuman senses and instincts." },
+    { name: "Veteran Fighter", type: "Trait", rarity: "Common", description: "Experience grants tactical advantage." },
+    { name: "Hybrid Physiology", type: "Trait", rarity: "Rare", description: "Racial mix with unique abilities." },
+    { name: "Curse Mark", type: "Trait", rarity: "Ultra Rare", description: "Mark that releases great dark power." },
+    { name: "Master Tactician", type: "Trait", rarity: "Legendary", description: "Natural strategist in any field." },
+    { name: "Empathic Link", type: "Trait", rarity: "Rare", description: "Feel others' emotions intensely." },
+    { name: "Cold-Hearted", type: "Trait", rarity: "Common", description: "Keep a cool head always." },
+    { name: "Night Vision", type: "Trait", rarity: "Common", description: "Enhanced vision in darkness." },
+    { name: "Flight Adaptation", type: "Trait", rarity: "Rare", description: "Body adapted for sustained flight." },
+    { name: "Mana Affinity", type: "Trait", rarity: "Rare", description: "Magic more efficient and powerful." },
+    { name: "Weight of Fate", type: "Trait", rarity: "Mythical", description: "Accompanied by transcendental events." },
+    { name: "Temporal Reflex", type: "Trait", rarity: "Ultra Rare", description: "React before events occur." },
+    { name: "Noble Phantasm Resonance", type: "Trait", rarity: "Legendary", description: "Higher affinity with legendary weapons." },
+    { name: "Poison Resistance", type: "Trait", rarity: "Common", description: "Withstand toxins more easily." },
+    { name: "Iron Constitution", type: "Trait", rarity: "Rare", description: "Resist extreme conditions." },
+    { name: "Soul Anchor", type: "Trait", rarity: "Mythical", description: "Existence not easily erased." },
+    { name: "Echo Location", type: "Trait", rarity: "Common", description: "Highly precise orientation via sounds." },
+    { name: "Adaptive Evolution", type: "Trait", rarity: "Rare", description: "Body adapts to threats." },
+    { name: "Mana Well", type: "Trait", rarity: "Legendary", description: "Huge internal reservoir of magic." },
+    { name: "Memory Keeper", type: "Trait", rarity: "Rare", description: "Perfect recollection of past events." },
+    { name: "Chosen Lineage", type: "Trait", rarity: "Mythical", description: "Predestined for a great role." },
+    { name: "Alchemical Touch", type: "Trait", rarity: "Ultra Rare", description: "Transform materials by touch." },
+    { name: "Stealth Master", type: "Trait", rarity: "Rare", description: "Extreme ability to remain unseen." },
+    { name: "Curse Reversal", type: "Trait", rarity: "Legendary", description: "Invert curses to your favor." },
+    { name: "Giant Blood", type: "Trait", rarity: "Ultra Rare", description: "Superhuman size and strength." },
+    { name: "Soul Eater", type: "Trait", rarity: "Mythical", description: "Absorb life energy from defeated." },
+    { name: "Runic Tattoo", type: "Trait", rarity: "Rare", description: "Marks that enhance spells." },
+    { name: "Bound Servant", type: "Trait", rarity: "Rare", description: "Allied spirit obeys your orders." },
+    { name: "Eternal Youth", type: "Trait", rarity: "Legendary", description: "Ages extremely slowly." },
+    { name: "Cosmic Awareness", type: "Trait", rarity: "Divine", description: "Perceive global cosmic patterns." }
+  ],
+
+  items: [
+    { name: "Excalibur", type: "Item", rarity: "Divine", description: "Sacred sword of overwhelming power." },
+    { name: "Enuma Elish (Ea)", type: "Item", rarity: "Divine", description: "Noble Phantasm that remakes reality." },
+    { name: "Gate of Babylon", type: "Item", rarity: "Mythical", description: "Infinite arsenal of legendary treasures." },
+    { name: "Caliburn", type: "Item", rarity: "Legendary", description: "Precursor to Excalibur, pure blade." },
+    { name: "Avalon (Noble Relic)", type: "Item", rarity: "Mythical", description: "Regenerative protection and eternal shield." },
+    { name: "Death Note", type: "Item", rarity: "Legendary", description: "Write a name, the person dies." },
+    { name: "Tessaiga", type: "Item", rarity: "Legendary", description: "Demonic sword with devastating techniques." },
+    { name: "Nichirin Blade", type: "Item", rarity: "Ultra Rare", description: "Katana forged to hunt demons." },
+    { name: "Kusanagi-no-Tsurugi", type: "Item", rarity: "Legendary", description: "Mythical sword of ancient Japan." },
+    { name: "Ruyi Jingu Bang", type: "Item", rarity: "Legendary", description: "Extendable staff with colossal power." },
+    { name: "Zanpakutō: Bankai", type: "Item", rarity: "Ultra Rare", description: "Final form of a soul-sword." },
+    { name: "Black Grimoire", type: "Item", rarity: "Mythical", description: "Book with forbidden dark spells." },
+    { name: "Holy Grail", type: "Item", rarity: "Divine", description: "Can grant wishes to possessor." },
+    { name: "Command Seal", type: "Item", rarity: "Legendary", description: "Absolute order to a summoned servant." },
+    { name: "Philosopher's Stone", type: "Item", rarity: "Mythical", description: "Transmutes and prolongs life." },
+    { name: "Enchanted Sealing Scroll", type: "Item", rarity: "Rare", description: "Allows sealing spirits and techniques." },
+    { name: "Ring of Shadows", type: "Item", rarity: "Legendary", description: "Makes wearer partially invisible." },
+    { name: "Spirit Beads", type: "Item", rarity: "Ultra Rare", description: "Channel and seal spiritual energy." },
+    { name: "Phoenix Feather", type: "Item", rarity: "Legendary", description: "Can revive wearer once." },
+    { name: "Time Sandglass", type: "Item", rarity: "Mythical", description: "Rewinds seconds in time." },
+    { name: "Orb of Chaos", type: "Item", rarity: "Divine", description: "Manipulates entropy and chance in areas." },
+    { name: "Sealing Blade", type: "Item", rarity: "Mythical", description: "Permanently seals abilities and beings." },
+    { name: "Mana Crystal", type: "Item", rarity: "Common", description: "Basic source of magical energy." },
+    { name: "Enchanted Armor", type: "Item", rarity: "Ultra Rare", description: "Protection against magical attacks." },
+    { name: "Demon Horn", type: "Item", rarity: "Rare", description: "Boosts power at cost of humanity." },
+    { name: "Sacred Talisman", type: "Item", rarity: "Divine", description: "Protects against curses and corruption." },
+    { name: "Blackened Mirror", type: "Item", rarity: "Rare", description: "Reflects and returns curses." },
+    { name: "Phantom Lantern", type: "Item", rarity: "Common", description: "Reveals nearby ghostly presences." },
+    { name: "Starforged Armor", type: "Item", rarity: "Divine", description: "Armor forged with celestial metal." },
+    { name: "Soulchain Collar", type: "Item", rarity: "Rare", description: "Connects destinies and shares damage." },
+    { name: "Mystic Cloak", type: "Item", rarity: "Rare", description: "Grants high magical resistance." },
+    { name: "Elixir of Giants", type: "Item", rarity: "Ultra Rare", description: "Temporarily increases size and strength." },
+    { name: "Mirror of Memories", type: "Item", rarity: "Rare", description: "Extracts and shows ancient memories." },
+    { name: "Void Anchor", type: "Item", rarity: "Ultra Rare", description: "Fixes a point in the void." },
+    { name: "Cursed Sword", type: "Item", rarity: "Mythical", description: "Weapon with will and curse." },
+    { name: "Phantom Chest (Mimic)", type: "Item", rarity: "Rare", description: "Living chest that deceives thieves." },
+    { name: "Alicorn Horn", type: "Item", rarity: "Ultra Rare", description: "Pure and almost instant healing." },
+    { name: "Grim Reaper Scythe", type: "Item", rarity: "Legendary", description: "Weapon that claims and manipulates souls." },
+    { name: "Celestial Map", type: "Item", rarity: "Mythical", description: "Locates portals and astral paths." },
+    { name: "Runic Bracelet", type: "Item", rarity: "Rare", description: "Enhances spells and magical resistance." },
+    { name: "Soul Gem", type: "Item", rarity: "Ultra Rare", description: "Stores life energy for reuse." },
+    { name: "Divine Relic", type: "Item", rarity: "Divine", description: "Object with concentrated celestial power." } 
+  ,{ name: "Screwdriver", type: "Item", rarity: "Common", description: "Simple tool for screws." },
+    { name: "Knife", type: "Item", rarity: "Common", description: "Basic cutting blade." },
+  { name: "Hammer", type: "Item", rarity: "Common", description: "Useful for hitting nails." },
+  { name: "Wrench", type: "Item", rarity: "Common", description: "Adjusts bolts and nuts." },
+  { name: "Nail", type: "Item", rarity: "Common", description: "Small metal spike." },
+  { name: "Screw", type: "Item", rarity: "Common", description: "Threaded fastener for construction." },
+  { name: "Rope", type: "Item", rarity: "Common", description: "Sturdy cord for tying things." },
+  { name: "Flashlight", type: "Item", rarity: "Common", description: "Portable light source." },
+  { name: "Backpack", type: "Item", rarity: "Common", description: "Carry items easily." },
+  { name: "Bottle of Water", type: "Item", rarity: "Common", description: "Hydration on the go." },
+  { name: "Bandage", type: "Item", rarity: "Common", description: "Basic first aid for cuts." } 
+  ],
+
+  powers: [
+    { name: "One For All", type: "Power", rarity: "Divine", description: "Accumulated power passed through generations." },
+    { name: "All For One", type: "Power", rarity: "Divine", description: "Steal and use multiple abilities." },
+    { name: "Explosion Quirk", type: "Power", rarity: "Rare", description: "Generate controlled body explosions." },
+    { name: "Erasure Quirk", type: "Power", rarity: "Ultra Rare", description: "Temporarily nullify others' powers." },
+    { name: "Gum-Gum Fruit (Gomu)", type: "Power", rarity: "Legendary", description: "Elastic body, extended attacks." },
+    { name: "Gura Gura no Mi", type: "Power", rarity: "Mythical", description: "Generate earthquakes and seismic destruction." },
+    { name: "Yami Fruit (Dark)", type: "Power", rarity: "Mythical", description: "Control darkness and gravity." },
+    { name: "Flame Manipulation", type: "Power", rarity: "Common", description: "Control and project fire." },
+    { name: "Ice Manipulation", type: "Power", rarity: "Rare", description: "Create and shape ice precisely." },
+    { name: "Water Manipulation", type: "Power", rarity: "Common", description: "Control water and currents." },
+    { name: "Earth Manipulation", type: "Power", rarity: "Common", description: "Move and shape earth and rock." },
+    { name: "Lightning Manipulation", type: "Power", rarity: "Rare", description: "Generate and launch powerful lightning." },
+    { name: "Gravity Manipulation", type: "Power", rarity: "Ultra Rare", description: "Modify gravity in areas." },
+    { name: "Time Manipulation", type: "Power", rarity: "Divine", description: "Alter temporal flow around you." },
+    { name: "Space Manipulation", type: "Power", rarity: "Divine", description: "Bend space and create rifts." },
+    { name: "Telekinesis", type: "Power", rarity: "Rare", description: "Move objects with mind." },
+    { name: "Telepathy", type: "Power", rarity: "Rare", description: "Communicate and read minds." },
+    { name: "Reality Warping", type: "Power", rarity: "Divine", description: "Rewrite minor reality rules." },
+    { name: "Soul Manipulation", type: "Power", rarity: "Mythical", description: "Control, extract, or modify souls." },
+    { name: "Death Manipulation", type: "Power", rarity: "Mythical", description: "Invoke or delay death." },
+    { name: "Healing Factor", type: "Power", rarity: "Rare", description: "Accelerated healing of wounds." },
+    { name: "Regeneration", type: "Power", rarity: "Ultra Rare", description: "Massive tissue regrowth." },
+    { name: "Shapeshifting", type: "Power", rarity: "Rare", description: "Change appearance and body form." },
+    { name: "Size Manipulation", type: "Power", rarity: "Rare", description: "Alter size at will." },
+    { name: "Clone Creation", type: "Power", rarity: "Common", description: "Generate temporary duplicates." },
+    { name: "Energy Beam", type: "Power", rarity: "Common", description: "Concentrated offensive energy rays." },
+    { name: "Blood Manipulation", type: "Power", rarity: "Ultra Rare", description: "Control own or others' blood." },
+    { name: "Shadow Manipulation", type: "Power", rarity: "Legendary", description: "Use shadows as weapons and barriers." },
+    { name: "Magnetism Control", type: "Power", rarity: "Rare", description: "Manipulate magnetic fields and metals." },
+    { name: "Emotion Manipulation", type: "Power", rarity: "Mythical", description: "Change emotions of crowds." },
+    { name: "Concept Manipulation: Decay", type: "Power", rarity: "Divine", description: "Matter decomposes on contact." },
+    { name: "Probability Manipulation", type: "Power", rarity: "Mythical", description: "Alter luck and random outcomes." },
+    { name: "Puppet Mastery", type: "Power", rarity: "Rare", description: "Control bodies or dolls remotely." },
+    { name: "Memory Erasure", type: "Power", rarity: "Ultra Rare", description: "Erase selective memories at will." },
+    { name: "Mind Control", type: "Power", rarity: "Legendary", description: "Mental domination over individuals." },
+    { name: "Particle Manipulation", type: "Power", rarity: "Ultra Rare", description: "Control subatomic particles." },
+    { name: "Sound Manipulation", type: "Power", rarity: "Rare", description: "Vibrations that damage or alter." },
+    { name: "Plant Manipulation", type: "Power", rarity: "Common", description: "Control over flora and roots." },
+    { name: "Animal Communication", type: "Power", rarity: "Common", description: "Talk to and command animals." },
+    { name: "Portal Creation", type: "Power", rarity: "Ultra Rare", description: "Open instant portals between points." },
+    { name: "Energy Absorption", type: "Power", rarity: "Legendary", description: "Absorb energy and reuse it." },
+    { name: "Aura Manifestation", type: "Power", rarity: "Rare", description: "Materialize energy offensively." },
+    { name: "Psychometry", type: "Power", rarity: "Rare", description: "Read object history by touch." },
+    { name: "Absolute Zero", type: "Power", rarity: "Divine", description: "Freeze reality almost entirely." },
+    { name: "Titan Shifting: Attack Titan", type: "Power", rarity: "Legendary", description: "Titan transformation with combative ferocity." },
+    { name: "Titan Shifting: Founding Titan", type: "Power", rarity: "Divine", description: "Control other titans and memories." },
+    { name: "Titan Shifting: Colossal Titan", type: "Power", rarity: "Mythical", description: "Transformation causing massive destruction." }
+  ]
+};
+
+
+  let currentCategory = "skills"; // por defecto
+
+  // DOM elements will be resolved after DOMContentLoaded to avoid null lookups
+  let card, infoBox, rollButton;
+
+    function setCategory(category) {
+      currentCategory = category;
+      if (!infoBox) infoBox = document.getElementById('info');
+      if (!card) card = document.getElementById('gachaCard');
+      if (infoBox) infoBox.innerHTML = `<strong>Category Selected:</strong> ${category.toUpperCase()}<br><br>Roll to see your result.`;
+      if (card) {
+        card.innerHTML = `<strong>${category.toUpperCase()}</strong>`;
+        card.className = "card"; // reset estilos
+      }
+    }
+
+    // Render the on-screen probability legend
+    function renderProbabilities() {
+      const container = document.getElementById('probabilities');
+      if (!container) return;
+      const entries = Object.entries(rarityChances).map(([k, v]) => ({ rarity: k, weight: Number(v) || 0 }));
+      const total = entries.reduce((s, e) => s + e.weight, 0) || 1;
+      // sort descending by weight
+      entries.sort((a, b) => b.weight - a.weight);
+
+      container.innerHTML = '<strong>Rarity Chances</strong>';
+      for (const e of entries) {
+        const pct = ((e.weight / total) * 100).toFixed(1);
+        const row = document.createElement('div');
+        row.className = 'prob-row';
+        const name = document.createElement('div');
+        name.className = 'prob-name';
+        name.textContent = e.rarity.replace(/[_\-]/g, ' ');
+        const value = document.createElement('div');
+        value.textContent = `${pct}%`;
+        row.appendChild(name);
+        row.appendChild(value);
+        container.appendChild(row);
+      }
+    }
+
+    function rollGacha() {
+      const pool = data[currentCategory];
+      if (!pool || pool.length === 0) {
+        infoBox.innerHTML = "⚠️ No categories in this function!!.";
+        return;
+      }
+
+      // disable during roll to avoid overlapping animations
+      rollButton.disabled = true;
+      card.style.pointerEvents = 'none';
+      card.classList.add("spin");
+
+      setTimeout(() => {
+        // 1. Escoger rareza según probabilidades
+        const rarity = getRandomRarity();
+
+        // 2. Filtrar solo los que tienen esa rareza (case-insensitive)
+        const filtered = pool.filter(s => (s.rarity || '').toLowerCase() === (rarity || '').toLowerCase());
+
+        // Si no hay ninguno de esa rareza, tratar de buscar la forma más cercana o fallback a cualquiera
+        let skill;
+        if (filtered.length > 0) {
+          skill = filtered[Math.floor(Math.random() * filtered.length)];
+        } else {
+          // Try to find any item whose rarity matches a normalized key in rarityChances
+          const normalizedMap = {};
+          for (const it of pool) {
+            const key = (it.rarity || 'Common').toLowerCase();
+            if (!normalizedMap[key]) normalizedMap[key] = [];
+            normalizedMap[key].push(it);
+          }
+
+          const desired = (rarity || 'Common').toLowerCase();
+          if (normalizedMap[desired] && normalizedMap[desired].length > 0) {
+            skill = normalizedMap[desired][Math.floor(Math.random() * normalizedMap[desired].length)];
+          } else {
+            // fallback: pick any available item
+            skill = pool[Math.floor(Math.random() * pool.length)];
+          }
+        }
+
+        // Reset estilos
+        card.className = "card";
+
+        // Map rarity to CSS-safe class (lowercase, replace spaces/underscores with hyphen)
+        const cssClass = (skill.rarity || 'Common').toLowerCase().replace(/[_\s]+/g, '-');
+        card.classList.add(cssClass);
+
+        card.innerHTML = `<strong>${skill.name}</strong><br><small>${skill.type}</small>`;
+
+        infoBox.innerHTML = `
+          <p><strong>Name:</strong> ${skill.name}</p>
+          <p><strong>Type:</strong> ${skill.type}</p>
+          <p><strong>Rarity:</strong> ${skill.rarity}</p>
+          <p><strong>Description:</strong> ${skill.description}</p>
+        `;
+
+        // Re-enable controls
+        rollButton.disabled = false;
+        card.style.pointerEvents = '';
+      }, 500);
+    }
+
+    function getRandomRarity() {
+      // Compute total so weights don't need to sum to 100
+      const entries = Object.entries(rarityChances);
+      const total = entries.reduce((s, [, c]) => s + (Number(c) || 0), 0);
+      if (total <= 0) return entries.length ? entries[0][0] : 'Common';
+
+      const rand = Math.random() * total;
+      let cumulative = 0;
+      for (let [rarity, chance] of entries) {
+        cumulative += (Number(chance) || 0);
+        if (rand <= cumulative) return rarity;
+      }
+      return entries.length ? entries[entries.length - 1][0] : 'Common'; // fallback
+    }
+
+    // Attach listeners after DOM is ready and render probabilities
+    window.addEventListener('DOMContentLoaded', () => {
+      card = document.getElementById('gachaCard');
+      infoBox = document.getElementById('info');
+      rollButton = document.getElementById('rollButton');
+      if (rollButton) rollButton.addEventListener('click', rollGacha);
+      if (card) card.addEventListener('click', rollGacha);
+      renderProbabilities();
+    });
+  </script>
+</body>
+</html>
+
+
